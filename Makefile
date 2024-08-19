@@ -1,4 +1,4 @@
 
 
 all:
-	g++ -o main *.cpp -pthread
+	g++ -o main *.cpp -g -pthread

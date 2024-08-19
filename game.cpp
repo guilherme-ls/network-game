@@ -5,5 +5,5 @@ const int screenHeight = 450;
 
 void initialize() {
 
-    InitWindow(screenWidth, screenHeight, "Great Game");
+    //InitWindow(screenWidth, screenHeight, "Great Game");
 }

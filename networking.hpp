@@ -1,42 +1,50 @@
 #include <sys/socket.h>
+#include <netdb.h>
 #include <sys/un.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <string>
 #include <exception>
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstdlib>
 
 class Sockets {
-    public:
-
-        const int STD_SIZE = 128;
-
-        const int port = 4277;
-
-        std::vector<int> sockets_list;
-
-        int openServer();
-
-        int openClient(std::string name);
-
-        int loopClient(char* com, struct timeval dropout_time);
-
-        int loopServer(std::string* connection_list, int size, std::vector<std::string>* server_com, struct timeval dropout_time);
-
-        int sendMessage(int socket, std::string msg);
-
-        void closeSocket(int dis_socket);
-
     private:
         int connection_socket;
 
-        int open();
+        const char *ip;
 
-        int binding(unsigned int connection_number);
+        const int STD_SIZE = 128;
 
-        int connecting(char* path);
+        unsigned int connection_number;
 
-        int listenning(char* com, struct timeval dropout_time);
+        int port;
+
+        struct timeval dropout_time = {0,0};
+
+        std::vector<int> sockets_list;
+
+    public:
+        int startServer();
+
+        int startClient();
+
+        int loopClient(std::vector<std::string>* com);
+
+        int loopServer(std::vector<std::string>* server_com);
+
+        int sendMessage(std::string msg);
+
+        int sendMessageAll(std::string msg);
+
+        void closeSocket();
+
+        Sockets(std::string ip, unsigned int connection_number, int port) {
+            Sockets::ip = ip.c_str();
+            Sockets::connection_number = connection_number;
+            Sockets::port = port;
+        }
 };

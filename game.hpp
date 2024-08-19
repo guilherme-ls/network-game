@@ -5,3 +5,4 @@
 
 
 // game logic here
+void initialize();
