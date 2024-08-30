@@ -15,8 +15,25 @@ void ler(Sockets sock) {
 
 int main() {
     // initializes game window
-    //initialize();
+    GameWindow window = GameWindow(1200, 780, 60, true);
+    window.initialize();
+    const int sides = 6;
 
+    while(!WindowShouldClose()) {
+        window.cameraUpdate();
+        BeginDrawing();
+        window.generalDraw();
+        BeginMode2D(window.camera);
+        for(int i = 0; i < sides; i++)
+            window.drawMapTriangle(sides, i, 200);
+        EndMode2D();
+        EndDrawing();
+    }
+
+    printf("sinal\n");
+    window.finalize();
+
+    /*
     Sockets sock = Sockets("127.0.0.1", 128, 4277);
 
     int input;
@@ -41,6 +58,7 @@ int main() {
         sock.sendMessage(message);
         sock.closeSocket();
     }
+    */
 
     // correct execution
     return 0;
