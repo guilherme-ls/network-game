@@ -24,6 +24,7 @@ int main() {
         sock.startClient();
         network_thread = std::thread(&Sockets::realClientLoop, &sock);
     }
+    network_thread.detach();
 
     gameMap.loadTextures();
 
@@ -63,7 +64,6 @@ int main() {
 
     gameMap.unloadTextures();
     window.finalize();
-    network_thread.~thread();
     sock.closeSocket();
 
     // correct execution

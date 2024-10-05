@@ -44,6 +44,8 @@ class Map {
         std::vector<std::array<std::array<Vector2, 4>, 4>> piece_positions;
         std::vector<std::array<Texture2D, 6>> piece_textures;
 
+        void drawMenu();
+
         void drawMap();
 
         void calculatePoints(float scale);

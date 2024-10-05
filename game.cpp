@@ -32,6 +32,21 @@ void GameWindow::generalDraw() {
 }
 
 /**
+ * @brief updates camera position according to inputs
+ */
+void GameWindow::cameraUpdate() {
+    GameWindow::camera.zoom += ((float)GetMouseWheelMove() * 0.2f);
+
+    if (IsKeyDown(KEY_RIGHT)) GameWindow::camera.target.x += 3;
+    else if (IsKeyDown(KEY_LEFT)) GameWindow::camera.target.x -= 3;
+    else if (IsKeyDown(KEY_UP)) GameWindow::camera.target.y -= 3;
+    else if (IsKeyDown(KEY_DOWN)) GameWindow::camera.target.y += 3;
+
+    if (GameWindow::camera.zoom > 10.0f) GameWindow::camera.zoom = 10.0f;
+    else if (GameWindow::camera.zoom < 0.1f) GameWindow::camera.zoom = 0.1f;
+}
+
+/**
  * @brief calculates all relevant points in the map
  * @param scale scale for the map to be calculated (important when playing with >3 people)
  */
@@ -207,16 +222,4 @@ void Map::drawHighlights(std::vector<std::array<std::array<bool, 4>, 4>> highlig
             }
         }
     }
-}
-
-void GameWindow::cameraUpdate() {
-    GameWindow::camera.zoom += ((float)GetMouseWheelMove() * 0.2f);
-
-    if (IsKeyDown(KEY_RIGHT)) GameWindow::camera.target.x += 3;
-    else if (IsKeyDown(KEY_LEFT)) GameWindow::camera.target.x -= 3;
-    else if (IsKeyDown(KEY_UP)) GameWindow::camera.target.y -= 3;
-    else if (IsKeyDown(KEY_DOWN)) GameWindow::camera.target.y += 3;
-
-    if (GameWindow::camera.zoom > 10.0f) GameWindow::camera.zoom = 10.0f;
-    else if (GameWindow::camera.zoom < 0.1f) GameWindow::camera.zoom = 0.1f;
 }

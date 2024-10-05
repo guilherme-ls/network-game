@@ -9,6 +9,7 @@ int Sockets::startServer() {
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
+    halt_loop = false;
 
     // get address from given hints
     struct addrinfo *servinfo;
@@ -59,6 +60,7 @@ int Sockets::startClient() {
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
+    halt_loop = false;
 
     // get address from given hints
     struct addrinfo *clientinfo;
@@ -104,9 +106,20 @@ void Sockets::receiveMessage(int nsock) {
         if(close(nsock) < 0) {
             perror("Socket close error");
         }
-        mutex_alter_socket_list.lock();
-        Sockets::sockets_list.erase(std::find(Sockets::sockets_list.cbegin(), Sockets::sockets_list.cend(), nsock));
-        mutex_alter_socket_list.unlock();
+        // removes server and ends connection
+        if(nsock == connection_socket) {
+            mutex_halt_loop.lock();
+            halt_loop = true;
+            mutex_halt_loop.unlock();
+            printf("Server disconnected\n");
+        }
+        // removes disconnected socket from socket list (if server)
+        else {
+            mutex_alter_socket_list.lock();
+            Sockets::sockets_list.erase(std::find(Sockets::sockets_list.cbegin(), Sockets::sockets_list.cend(), nsock));
+            mutex_alter_socket_list.unlock();
+            printf("A client disconnected\n");
+        }
     }
     // stores received message
     else {
@@ -118,7 +131,7 @@ void Sockets::receiveMessage(int nsock) {
 }
 
 void Sockets::acceptConnections() {
-    printf("started accept thread\n");
+    printf("Started accept thread\n");
     int new_connection = accept(connection_socket, NULL, NULL);
     // accepts incoming connections
     if(new_connection == -1) {
@@ -144,11 +157,16 @@ int Sockets::receiveLoopClient() {
 
     // checks if socket can be read
     ssize_t activity = select(connection_socket + 1, &fd_reads, NULL, NULL,  &(Sockets::dropout_time));
+    if(activity < 0) {
+        perror("Socket select error");
+        return -1;
+    }
 
     // gets message if fd is set
     if (FD_ISSET(connection_socket, &fd_reads)) {
-        std::thread receive_thread(&Sockets::receiveMessage, this, connection_socket);
-        receive_thread.detach();
+        receiveMessage(connection_socket);
+        /*std::thread receive_thread(&Sockets::receiveMessage, this, connection_socket);
+        receive_thread.detach();*/
     }
 
     return 1;
@@ -181,14 +199,14 @@ int Sockets::receiveLoopServer() {
     }
 
     // checks message received from each connection
+    std::vector<std::thread*> message_threads;
     for (int i = 0; i < Sockets::sockets_list.size(); i++) {
         mutex_alter_socket_list.lock();
         int nsock = Sockets::sockets_list[i];
         mutex_alter_socket_list.unlock();
 
         if(FD_ISSET(nsock, &fd_reads)) {
-            std::thread message_thread(&Sockets::receiveMessage, this, nsock);
-            message_thread.detach();
+            message_threads.emplace_back(new std::thread(&Sockets::receiveMessage, this, nsock));
         }
     }
 
@@ -196,6 +214,11 @@ int Sockets::receiveLoopServer() {
     if(FD_ISSET(connection_socket, &fd_reads)) {
         std::thread accept_thread(&Sockets::acceptConnections, this);
         accept_thread.detach();
+    }
+
+    // joins previous threads to ensure no overlapping read operation next cycle
+    for(auto threads : message_threads) {
+        (*threads).join();
     }
 
     return 1;
@@ -206,6 +229,8 @@ void Sockets::sendLoopClient() {
     int size = outbound_messages.size();
     mutex_alter_outbound_messages.unlock();
 
+    // sends all stored messages
+    std::vector<std::thread*> message_threads;
     for(int i = 0; i < size; i++) {
         std::pair<std::string, int> msg;
         mutex_alter_outbound_messages.lock();
@@ -215,8 +240,12 @@ void Sockets::sendLoopClient() {
         mutex_alter_outbound_messages.unlock();
 
         // sends message
-        std::thread send_thread(&Sockets::sendMessage, this, connection_socket, msg.first);
-        send_thread.detach();
+        message_threads.emplace_back(new std::thread(&Sockets::sendMessage, this, connection_socket, msg.first));
+    }
+
+    // joins previous threads to ensure no overlapping write operation next cycle
+    for(auto send_thread : message_threads) {
+        (*send_thread).join();
     }
 }
 
@@ -225,6 +254,8 @@ void Sockets::sendLoopServer() {
     int size = outbound_messages.size();
     mutex_alter_outbound_messages.unlock();
 
+    // sends all stored messages
+    std::vector<std::thread*> message_threads;
     for(int i = 0; i < size; i++){
         std::pair<std::string, int> msg;
         mutex_alter_outbound_messages.lock();
@@ -237,11 +268,15 @@ void Sockets::sendLoopServer() {
         mutex_alter_socket_list.lock();
         for(int i = 0; i < sockets_list.size(); i++) {
             if(sockets_list[i] != msg.second) {
-                std::thread send_thread(&Sockets::sendMessage, this, sockets_list[i], msg.first);
-                send_thread.detach();
+                message_threads.emplace_back(new std::thread(&Sockets::sendMessage, this, sockets_list[i], msg.first));
             }
         }
         mutex_alter_socket_list.unlock();
+    }
+    
+    // joins previous threads to ensure no overlapping write operation next cycle
+    for(auto send_thread : message_threads) {
+        (*send_thread).join();
     }
 }
 
@@ -251,11 +286,11 @@ void Sockets::sendLoopServer() {
  * @return 0 on success, -1 for errors
  */
 int Sockets::sendMessage(int fd, std::string msg) {
-    printf("started send message thread\n");
+    printf("Started send message thread\n");
     if(send(fd, msg.c_str(), msg.size(), 0) < 0) {
         perror("Socket write error");
         
-        // puts message back in the queue, case it fails
+        // puts message back in the queue if it fails to send
         mutex_alter_outbound_messages.lock();
         outbound_messages.emplace_back(make_pair(msg, fd));
         mutex_alter_outbound_messages.unlock();
@@ -306,6 +341,14 @@ void Sockets::realClientLoop() {
             outbound_messages.emplace_back(make_pair(msg, connection_socket));
             mutex_alter_outbound_messages.unlock();
         }
+
+        // terminates client loop thread
+        mutex_halt_loop.lock();
+        if(halt_loop) {
+            mutex_halt_loop.unlock();
+            return;
+        }
+        mutex_halt_loop.unlock();
 
         // sends messages
         sendLoopClient();
@@ -358,15 +401,25 @@ void Sockets::realServerLoop() {
             mutex_alter_outbound_messages.unlock();
         }
 
+        // terminates server loop thread
+        mutex_halt_loop.lock();
+        if(halt_loop) {
+            mutex_halt_loop.unlock();
+            return;
+        }
+        mutex_halt_loop.unlock();
+
         // sends messages
         sendLoopServer();
     }
 }
 
 /** Closes socket
- * @param dis_socket socket to be disconnected
  */
 void Sockets::closeSocket() {
+    mutex_halt_loop.lock();
+    halt_loop = true;
+    mutex_halt_loop.unlock();
     if(close(Sockets::connection_socket) < 0)
         perror("Socket close error");
 }

@@ -304,7 +304,6 @@ void Controller::receiveMessages() {
         
         // deal with msg
         executeMessage(msg);
-        printf("dealt with message");
     }
 }
 
@@ -316,7 +315,6 @@ void Controller::executeMessage(std::string msg) {
         stream >> src.i >> src.j >> src.k >> dst.i >> dst.j >> dst.k;
         move(src, dst);
         player_turn = (player_turn + 1) % players;
-        printf("updated board");
     }
 }
 

@@ -37,6 +37,9 @@ class Sockets {
         std::mutex mutex_alter_socket_list;
         std::mutex mutex_alter_inbound_messages;
         std::mutex mutex_alter_outbound_messages;
+        std::mutex mutex_halt_loop;
+
+        bool halt_loop = false;
 
         std::vector<std::pair<std::string, int>> inbound_messages;
         std::vector<std::pair<std::string, int>> outbound_messages;
