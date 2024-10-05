@@ -1,2 +1,2 @@
 # network-game
-Code for a multiplayer game using sockects
+Code for a multiplayer chess game using sockets.
