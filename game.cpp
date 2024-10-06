@@ -37,10 +37,24 @@ Rectangle GameWindow::drawButton(std::string text, Vector2 position, float scale
     return rec;
 }
 
-int GameWindow::menuDrawLoop(int player_number) {
+int GameWindow::menuDrawLoop(int player_number, Map* decorativeMap) {
     // starts drawing call
     BeginDrawing();
     generalDraw();
+
+    camera.target = (Vector2){0, 0};
+    camera.zoom = 1.0f;
+    camera.offset = (Vector2){600, 180};
+    // begins part affected by camera
+    BeginMode2D(camera);
+
+    // draws decorative map on top of the menu
+    decorativeMap->drawMap();
+    drawButton("MULTICHESS", {0, 0}, (float)(screenWidth / 11), false);
+
+    // end part affected by camera
+    EndMode2D();
+    camera.offset = (Vector2){600, 390};
 
     // Draws on-screen buttons
     std::vector<Rectangle> buttons;

@@ -8,6 +8,8 @@ int main() {
     GameWindow window(1200, 780, 60, true);
     window.initialize();
     Map* gameMap = new Map(200);
+    Map* decorativeMap = new Map(150);
+    decorativeMap->initializeMap(6);
     Controller* gameController = new Controller(gameMap);
     Sockets* sock = new Sockets("127.0.0.1", 128, 4277, gameController);
     std::thread network_thread;
@@ -21,7 +23,7 @@ int main() {
     while(!WindowShouldClose()) {
         // menu loop
         if(gameState == 0) {
-            gameState = window.menuDrawLoop(player_number) + 1;
+            gameState = window.menuDrawLoop(player_number, decorativeMap) + 1;
             // start game
             if(gameState > 0 && gameState < 3) {
                 gameController->clearController(player_number);

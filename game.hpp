@@ -31,7 +31,7 @@ class GameWindow {
             GameWindow::fps_cap = fps_cap;
         }
 
-        int menuDrawLoop(int player_number);
+        int menuDrawLoop(int player_number, Map* decorativeMap);
 
         int gameDrawLoop(Controller* gameController, Map* gameMap);
 
