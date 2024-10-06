@@ -11,8 +11,11 @@ void Controller::clearController(int players) {
     outbound_messages.clear();
     positions.clear();
     highlights.clear();
+    active_player.clear();
     fillFalseMatrix();
     initialize_positions();
+    for(int i = 0; i < players; i++)
+        active_player.emplace_back(true);
 }
 
 void Controller::initialize_positions() {
@@ -50,9 +53,33 @@ void Controller::fillFalseMatrix() {
     }
 }
 
+/**
+ * @brief moves piece from src to dst
+ * @param src source position
+ * @param dst destination position
+ */
 void Controller::move(vector3 src, vector3 dst) {
+    // if the king is destroyed, player loses
+    int piece = positions[dst.i][dst.j][dst.k];
+    if(piece % 10 == 1) {
+        int player = (piece - piece % 10) / 10;
+        active_player[player] = false;
+        for(int i = 0; i < players * 2; i++)
+            for(int j = 0; j < 4; j++)
+                for(int k = 0; k < 4; k++)
+                    if((positions[i][j][k] - positions[i][j][k] % 10) / 10 == player)
+                        positions[i][j][k] = 0;
+    }
+
+    // executes movement
     Controller::positions[dst.i][dst.j][dst.k] = Controller::positions[src.i][src.j][src.k];
     Controller::positions[src.i][src.j][src.k] = 0;
+
+    // passes turn
+    player_turn = (player_turn + 1) % players;
+    // if next player already lost, goes to the next
+    while(!active_player[player_turn])
+        player_turn = (player_turn + 1) % players;
 }
 
 void Controller::checkMapClicks(Vector2 mouse) {
@@ -76,7 +103,6 @@ void Controller::checkMapClicks(Vector2 mouse) {
                         move(Controller::previous_piece, (vector3){i, j, k});
                         std::string msg = "mov " + std::to_string(previous_piece.i) + " " + std::to_string(previous_piece.j) + " " + std::to_string(previous_piece.k) + " " + std::to_string(i) + " " +std::to_string(j) + " " + std::to_string(k) + " ";
                         sendMessages(msg);
-                        player_turn = (player_turn + 1) % players;
                     }
                     else if((Controller::positions[i][j][k] - Controller::positions[i][j][k] % 10) / 10 == player_turn) {
                         fillFalseMatrix();
@@ -342,6 +368,38 @@ std::vector<std::array<std::array<int, 4>, 4>> desserialize(std::stringstream* s
     return output;
 }
 
+/**
+ * @brief checks wich players have already lost the game
+ * @param positions piece position matrix
+ * @param active active players vector
+ */
+void check_lost(std::vector<std::array<std::array<int, 4>, 4>>* positions, std::vector<bool>* active_list) {
+    active_list->clear();
+    for(int play = 0; play < positions->size()/2; play++) {
+        bool active = false;
+        for(int i = 0; i < positions->size(); i++) {
+            for(int j = 0; j < 4; j++) {
+                for(int k = 0; k < 4; k++) {
+                    int piece = (*positions)[i][j][k];
+                    if(piece != 0 && (piece - piece % 10) / 10 == play) {
+                        active = true;
+                        break;
+                    }
+                }
+                if(active)
+                    break;
+            }
+            if(active)
+                break;
+        }
+        active_list->emplace_back(active);
+    }
+}
+
+/**
+ * @brief updates game state according to message received through the network
+ * @param msg message received
+ */
 void Controller::executeMessage(std::string msg) {
     if(msg.substr(0,3) == "mov") {
         std::stringstream stream;
@@ -349,7 +407,6 @@ void Controller::executeMessage(std::string msg) {
         vector3 src, dst;
         stream >> src.i >> src.j >> src.k >> dst.i >> dst.j >> dst.k;
         move(src, dst);
-        player_turn = (player_turn + 1) % players;
     }
     else if(msg.substr(0,3) == "num") {
         std::stringstream stream;
@@ -363,6 +420,7 @@ void Controller::executeMessage(std::string msg) {
         players = positions.size() / 2;
         map->initializeMap(players * 2);
         fillFalseMatrix();
+        check_lost(&positions, &active_player);
     }
 }
 

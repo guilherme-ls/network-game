@@ -94,12 +94,16 @@ int GameWindow::gameDrawLoop(Controller* gameController, Map* gameMap) {
     // end part affected by camera
     EndMode2D();
 
-    // draw return button
+    // draws return button
     Rectangle ret = drawButton("<", {(float)(screenWidth) / 10.0f, (float)(screenHeight) / 10.0f}, (float)(screenWidth / 20), false);
+
+    // draws which player you are
+    drawButton("You are player " + std::to_string(gameController->my_player + 1), {(float)(screenWidth) / 1.2f, (float)(screenHeight) / 1.05f}, (float)(screenWidth / 40), false);
 
     // ends drawing call
     EndDrawing();
 
+    // checks if return to menu button is pressed
     if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), ret))
         return 1;
     return 0;

@@ -69,6 +69,7 @@ int main() {
 
             // draws window (and returns to menu if "<" button is pressed)
             if(window.gameDrawLoop(gameController, gameMap) == 1) {
+                printf("Returning to menu\n");
                 sock->endConnection(&network_thread);
                 gameState = 0;
             }

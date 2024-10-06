@@ -1,7 +1,7 @@
 #include "networking.hpp"
 
 void Sockets::clearSocket() {
-    connection_socket = 0;
+    connection_socket = -1;
     inbound_messages.clear();
     outbound_messages.clear();
     sockets_list.clear();
@@ -111,6 +111,7 @@ void Sockets::receiveMessage(int nsock) {
     }
     // socket closing signal
     else if (message_size == 0) {
+        printf("Closed socket connection\n");
         if(close(nsock) < 0) {
             perror("Socket close error");
         }
@@ -119,7 +120,7 @@ void Sockets::receiveMessage(int nsock) {
             mutex_halt_loop.lock();
             halt_loop = true;
             mutex_halt_loop.unlock();
-            connection_socket = 0;
+            connection_socket = -1;
             printf("Server disconnected\n");
         }
         // removes disconnected socket from socket list (if server)
@@ -469,8 +470,18 @@ void Sockets::endConnection(std::thread* network_thread) {
     halt_loop = true;
     mutex_halt_loop.unlock();
     network_thread->join();
+
+    // closes all client sockets
+    for(auto sock : sockets_list) {
+        if(sock != -1)
+            if(close(sock) < 0)
+                perror("Socket close connected client error");
+    }
+
     // closes socket if not already closed
-    if(connection_socket != 0)
+    if(connection_socket > 0) {
+        printf("Closed connection socket\n");
         if(close(Sockets::connection_socket) < 0)
             perror("Socket close error");
+    }
 }

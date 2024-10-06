@@ -15,6 +15,7 @@ class Controller {
         int player_turn = 0;
         int my_player = 0;
         Map* map;
+        std::vector<bool> active_player;
 
         std::mutex mutex_alter_inbound_messages;
         std::mutex mutex_alter_outbound_messages;
