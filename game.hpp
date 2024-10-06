@@ -7,6 +7,7 @@
 #include <vector>
 #include <array>
 #include <iostream>
+#include "logic.hpp"
 
 class GameWindow {
     public:
@@ -16,6 +17,8 @@ class GameWindow {
         unsigned int midScreenHeight;
         unsigned int fps_target;
         bool fps_cap;
+
+        Font standard_font = LoadFont("resources/fonts/pixantiqua.png");
 
         Camera2D camera;
 
@@ -28,6 +31,10 @@ class GameWindow {
             GameWindow::fps_cap = fps_cap;
         }
 
+        int menuDrawLoop(int player_number);
+
+        int gameDrawLoop(Controller* gameController, Map* gameMap);
+
         void initialize();
 
         void generalDraw();
@@ -35,34 +42,7 @@ class GameWindow {
         void finalize();
 
         void cameraUpdate();
-};
-
-class Map {
-    public:
-        int fractions;
-        std::vector<std::array<std::array<Vector2, 5>, 5>> edge_positions;
-        std::vector<std::array<std::array<Vector2, 4>, 4>> piece_positions;
-        std::vector<std::array<Texture2D, 6>> piece_textures;
-
-        void drawMenu();
-
-        void drawMap();
-
-        void calculatePoints(float scale);
-
-        void calculatePiecePositions();
-
-        void loadTextures();
-
-        void unloadTextures();
-
-        void drawPieces(std::vector<std::array<std::array<unsigned char, 4>, 4>> pieces, float piece_scale);
-
-        void drawHighlights(std::vector<std::array<std::array<bool, 4>, 4>> highlight);
-
-        Map(int fractions, float scale) {
-            Map::fractions = fractions;
-            calculatePoints(scale);
-            calculatePiecePositions();
-        }
+    
+    private:
+        Rectangle drawButton(std::string text, Vector2 position, float scale, bool draw_rec);
 };

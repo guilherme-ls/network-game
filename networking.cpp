@@ -1,5 +1,15 @@
 #include "networking.hpp"
 
+void Sockets::clearSocket() {
+    connection_socket = 0;
+    inbound_messages.clear();
+    outbound_messages.clear();
+    sockets_list.clear();
+    max_fd = 0;
+    halt_loop = false;
+    FD_ZERO(&fd_reads);
+}
+
 /** Starts socket
  * @return 0 on success, -1 for errors
  */
@@ -46,8 +56,6 @@ int Sockets::startServer() {
         return -1;
     }
 
-    printf("server listening\n");
-
     return 0;
 }
 
@@ -85,7 +93,7 @@ int Sockets::startClient() {
     }
     freeaddrinfo(clientinfo);
 
-    printf("client connected\n");
+    printf("Client connected\n");
 
     return 0;
 }
@@ -111,12 +119,14 @@ void Sockets::receiveMessage(int nsock) {
             mutex_halt_loop.lock();
             halt_loop = true;
             mutex_halt_loop.unlock();
+            connection_socket = 0;
             printf("Server disconnected\n");
         }
         // removes disconnected socket from socket list (if server)
         else {
             mutex_alter_socket_list.lock();
-            Sockets::sockets_list.erase(std::find(Sockets::sockets_list.cbegin(), Sockets::sockets_list.cend(), nsock));
+            auto iter = std::find(Sockets::sockets_list.begin(), Sockets::sockets_list.end(), nsock);
+            *iter = -1;
             mutex_alter_socket_list.unlock();
             printf("A client disconnected\n");
         }
@@ -137,10 +147,23 @@ void Sockets::acceptConnections() {
     if(new_connection == -1) {
         perror("Socket accept error");
     }
+    // updates socket list with new connection
     else {
+        int i = 0;
         mutex_alter_socket_list.lock();
-        Sockets::sockets_list.emplace_back(new_connection);
+        for(; i < sockets_list.size(); i++) {
+            if(sockets_list[i] == -1) {
+                sockets_list[i] = new_connection;
+                break;
+            }
+        }
+        if(i == sockets_list.size())
+            sockets_list.emplace_back(new_connection);
         mutex_alter_socket_list.unlock();
+
+        // send message with player number
+        std::thread message_thread(&Sockets::sendMessage, this, new_connection, "num " + std::to_string(i + 1));
+        message_thread.detach();
         printf("Stored new connection\n");
     }
 }
@@ -185,6 +208,9 @@ int Sockets::receiveLoopServer() {
     FD_ZERO(&fd_reads);
     FD_SET(connection_socket, &fd_reads);
     for(auto connected_socket : Sockets::sockets_list) {
+        if(connected_socket == -1)
+            continue;
+
         FD_SET(connected_socket, &fd_reads);
         if (connected_socket > max_fd) {
             max_fd = connected_socket;
@@ -201,6 +227,9 @@ int Sockets::receiveLoopServer() {
     // checks message received from each connection
     std::vector<std::thread*> message_threads;
     for (int i = 0; i < Sockets::sockets_list.size(); i++) {
+        if(sockets_list[i] == -1)
+            continue;
+
         mutex_alter_socket_list.lock();
         int nsock = Sockets::sockets_list[i];
         mutex_alter_socket_list.unlock();
@@ -212,13 +241,12 @@ int Sockets::receiveLoopServer() {
 
     // if server socket can be read, accepts new connections
     if(FD_ISSET(connection_socket, &fd_reads)) {
-        std::thread accept_thread(&Sockets::acceptConnections, this);
-        accept_thread.detach();
+        acceptConnections();
     }
 
     // joins previous threads to ensure no overlapping read operation next cycle
     for(auto threads : message_threads) {
-        (*threads).join();
+        threads->join();
     }
 
     return 1;
@@ -245,7 +273,7 @@ void Sockets::sendLoopClient() {
 
     // joins previous threads to ensure no overlapping write operation next cycle
     for(auto send_thread : message_threads) {
-        (*send_thread).join();
+        send_thread->join();
     }
 }
 
@@ -267,6 +295,9 @@ void Sockets::sendLoopServer() {
         // sends message
         mutex_alter_socket_list.lock();
         for(int i = 0; i < sockets_list.size(); i++) {
+            if(sockets_list[i] == -1)
+                continue;
+
             if(sockets_list[i] != msg.second) {
                 message_threads.emplace_back(new std::thread(&Sockets::sendMessage, this, sockets_list[i], msg.first));
             }
@@ -276,7 +307,7 @@ void Sockets::sendLoopServer() {
     
     // joins previous threads to ensure no overlapping write operation next cycle
     for(auto send_thread : message_threads) {
-        (*send_thread).join();
+        send_thread->join();
     }
 }
 
@@ -414,12 +445,15 @@ void Sockets::realServerLoop() {
     }
 }
 
-/** Closes socket
+/** Closes socket connection
  */
-void Sockets::closeSocket() {
+void Sockets::endConnection(std::thread* network_thread) {
     mutex_halt_loop.lock();
     halt_loop = true;
     mutex_halt_loop.unlock();
-    if(close(Sockets::connection_socket) < 0)
-        perror("Socket close error");
+    network_thread->join();
+    // closes socket if not already closed
+    if(connection_socket != 0)
+        if(close(Sockets::connection_socket) < 0)
+            perror("Socket close error");
 }

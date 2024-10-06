@@ -1,5 +1,19 @@
 #include "logic.hpp"
 
+/**
+ * @brief clear all controller variables
+ */
+void Controller::clearController(unsigned char players) {
+    Controller::players = players;
+    my_player = 0;
+    player_turn = 0;
+    inbound_messages.clear();
+    outbound_messages.clear();
+    positions.clear();
+    highlights.clear();
+    fillFalseMatrix();
+    initialize_positions();
+}
 
 void Controller::initialize_positions() {
     for(int i = 0; i < Controller::players * 2; i++) {
@@ -41,15 +55,19 @@ void Controller::move(vector3 src, vector3 dst) {
     Controller::positions[src.i][src.j][src.k] = 0;
 }
 
-void Controller::checkMapClicks(Vector2 mouse, Map map) {
+void Controller::checkMapClicks(Vector2 mouse) {
+    // checks if it is the correct turn
+    if(player_turn != my_player)
+        return;
+
     // loops over each fraction of the map
-    for(int i = 0; i < map.fractions; i++) {
+    for(int i = 0; i < map->fractions; i++) {
         // checks collision with each point
         for(int j = 0; j < 4; j++) {
             for(int k = 0; k < 4; k++) {
                 bool collision = false;
-                collision = CheckCollisionPointTriangle(mouse, map.edge_positions[i][j][k], map.edge_positions[i][j][k + 1], map.edge_positions[i][j + 1][k]);
-                collision += CheckCollisionPointTriangle(mouse, map.edge_positions[i][j][k + 1], map.edge_positions[i][j + 1][k], map.edge_positions[i][j + 1][k + 1]);
+                collision = CheckCollisionPointTriangle(mouse, map->edge_positions[i][j][k], map->edge_positions[i][j][k + 1], map->edge_positions[i][j + 1][k]);
+                collision += CheckCollisionPointTriangle(mouse, map->edge_positions[i][j][k + 1], map->edge_positions[i][j + 1][k], map->edge_positions[i][j + 1][k + 1]);
                 
                 // deals with clicks
                 if(collision) {
@@ -315,6 +333,12 @@ void Controller::executeMessage(std::string msg) {
         stream >> src.i >> src.j >> src.k >> dst.i >> dst.j >> dst.k;
         move(src, dst);
         player_turn = (player_turn + 1) % players;
+    }
+    else if(msg.substr(0,3) == "num") {
+        std::stringstream stream;
+        stream << msg.substr(3, msg.size() - 3);
+        stream >> my_player;
+        printf("Player number is %d\n", my_player);
     }
 }
 

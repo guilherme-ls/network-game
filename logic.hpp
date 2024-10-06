@@ -3,7 +3,7 @@
 #include <array>
 #include <mutex>
 #include <sstream>
-#include "game.hpp"
+#include "map.hpp"
 
 typedef struct {
     int i, j, k;
@@ -12,7 +12,9 @@ typedef struct {
 class Controller {
     public:
         unsigned char players;
-        unsigned char player_turn = 0;
+        int player_turn = 0;
+        int my_player = 0;
+        Map* map;
 
         std::mutex mutex_alter_inbound_messages;
         std::mutex mutex_alter_outbound_messages;
@@ -23,20 +25,20 @@ class Controller {
         std::vector<std::array<std::array<bool, 4>, 4>> highlights;
         vector3 previous_piece = {10, 10, 10};
 
+        void clearController(unsigned char players);
+
         void initialize_positions();
 
         void receiveMessages();
         
-        void checkMapClicks(Vector2 mouse, Map map);
+        void checkMapClicks(Vector2 mouse);
 
         void move(vector3 src, vector3 dst);
 
         void calculateMoves(vector3 src);
 
-        Controller(unsigned char players) {
-            Controller::players = players;
-            fillFalseMatrix();
-            initialize_positions();
+        Controller(Map* map) {
+            Controller::map = map;
         }
 
     private:

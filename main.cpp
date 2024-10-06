@@ -4,67 +4,88 @@
 #include <thread>
 
 int main() {
-    // initializes everything
-    const int players = 3;
+    // initializes window and main components
     GameWindow window(1200, 780, 60, true);
     window.initialize();
-    Map gameMap(players * 2, 200);
-    Controller gameController(players);
-    Sockets sock("127.0.0.1", 128, 4277, &gameController);
-
-    int input;
-    std::cin >> input;
-    // starts network thread
+    Map* gameMap = new Map(200);
+    Controller* gameController = new Controller(gameMap);
+    Sockets* sock = new Sockets("127.0.0.1", 128, 4277, gameController);
     std::thread network_thread;
-    if(input == 1) {
-        sock.startServer();
-        network_thread = std::thread(&Sockets::realServerLoop, &sock);
-    }
-    else {
-        sock.startClient();
-        network_thread = std::thread(&Sockets::realClientLoop, &sock);
-    }
-    network_thread.detach();
 
-    gameMap.loadTextures();
+    // loads game textures
+    gameMap->loadTextures();
 
+    // main game loop
+    unsigned char player_number = 3;
+    int gameState = 0;
     while(!WindowShouldClose()) {
-        window.cameraUpdate();
+        // menu loop
+        if(gameState == 0) {
+            gameState = window.menuDrawLoop(player_number) + 1;
+            // start game
+            if(gameState > 0 && gameState < 3) {
+                gameController->clearController(player_number);
+                sock->clearSocket();
+                gameMap->initializeMap(player_number * 2);
 
-        gameController.receiveMessages();
+                // begin game as server
+                if(gameState == 1) {
+                    if(sock->startServer() == -1) {
+                        printf("Error starting server\n");
+                        gameState = 0;
+                    }
+                    else {
+                        network_thread = std::thread(&Sockets::realServerLoop, sock);
+                    }
+                }
+                // begin game as client
+                else {
+                    if(sock->startClient() == -1) {
+                        printf("Error starting client\n");
+                        gameState = 0;
+                    }
+                    else {
+                        network_thread = std::thread(&Sockets::realClientLoop, sock);
+                    }
+                }
+            }
+            // changes number of players
+            if(gameState > 2) {
+                player_number += (gameState * 2 - 7);
+                gameState = 0;
+            }
+        }
+        // game loop
+        else {
+            window.cameraUpdate();
 
-        // starts drawing call
-        BeginDrawing();
-        window.generalDraw();
-        
-        // begins part affected by camera
-        BeginMode2D(window.camera);
+            gameController->receiveMessages();
 
-            // draws game map
-            gameMap.drawMap();
-            
             // deals with mouse clicks
             if(IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
                 // checks region of the board where click occurs
-                gameController.checkMapClicks(GetScreenToWorld2D(GetMousePosition(), window.camera), gameMap);
+                gameController->checkMapClicks(GetScreenToWorld2D(GetMousePosition(), window.camera));
             }
 
-            // draws highlighted areas of the board
-            gameMap.drawHighlights(gameController.highlights);
+            // draws window (and returns to menu if "<" button is pressed)
+            if(window.gameDrawLoop(gameController, gameMap) == 1) {
+                sock->endConnection(&network_thread);
+                gameState = 0;
+            }
 
-            // dras pieces of the board
-            gameMap.drawPieces(gameController.positions, 1.0 / players);
-
-        // end part affected by camera
-        EndMode2D();
-
-        // ends drawing call
-        EndDrawing();
+            // game execution needs to be halted
+            else if(sock->halt_loop) {
+                printf("Connection error, returning to menu\n");
+                sock->endConnection(&network_thread);
+                gameState = 0;
+            }
+        }
     }
 
-    gameMap.unloadTextures();
+    gameMap->unloadTextures();
     window.finalize();
-    sock.closeSocket();
+    if(!sock->halt_loop && gameState != 0)
+        sock->endConnection(&network_thread);
 
     // correct execution
     return 0;

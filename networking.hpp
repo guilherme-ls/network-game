@@ -14,10 +14,14 @@
 #include <cstdlib>
 #include <algorithm>
 
-#include "logic.hpp"
+#include "game.hpp"
 
 class Sockets {
     private:
+        int max_fd;
+    
+        fd_set fd_reads;
+
         int connection_socket;
 
         const char *ip;
@@ -28,7 +32,7 @@ class Sockets {
 
         int port;
 
-        struct timeval dropout_time = {0,0};
+        struct timeval dropout_time = {0,50};
 
         std::vector<int> sockets_list;
         
@@ -39,8 +43,6 @@ class Sockets {
         std::mutex mutex_alter_outbound_messages;
         std::mutex mutex_halt_loop;
 
-        bool halt_loop = false;
-
         std::vector<std::pair<std::string, int>> inbound_messages;
         std::vector<std::pair<std::string, int>> outbound_messages;
 
@@ -49,6 +51,8 @@ class Sockets {
         void acceptConnections();
 
     public:
+        void clearSocket();
+
         int startServer();
 
         int startClient();
@@ -63,7 +67,7 @@ class Sockets {
 
         int sendMessage(int fd, std::string msg);
 
-        void closeSocket();
+        void endConnection(std::thread* network_thread);
 
         void realClientLoop();
 
@@ -75,5 +79,7 @@ class Sockets {
             Sockets::port = port;
             Sockets::control = control;
         }
+
+        bool halt_loop = false;
 };
     // Sockets sock = Sockets("127.0.0.1", 128, 4277);
