@@ -11,7 +11,7 @@ typedef struct {
 
 class Controller {
     public:
-        unsigned char players;
+        int players;
         int player_turn = 0;
         int my_player = 0;
         Map* map;
@@ -21,11 +21,11 @@ class Controller {
         std::vector<std::string> inbound_messages;
         std::vector<std::string> outbound_messages;
 
-        std::vector<std::array<std::array<unsigned char, 4>, 4>> positions;
+        std::vector<std::array<std::array<int, 4>, 4>> positions;
         std::vector<std::array<std::array<bool, 4>, 4>> highlights;
         vector3 previous_piece = {10, 10, 10};
 
-        void clearController(unsigned char players);
+        void clearController(int players);
 
         void initialize_positions();
 

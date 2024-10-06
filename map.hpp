@@ -27,7 +27,7 @@ class Map {
 
         void unloadTextures();
 
-        void drawPieces(std::vector<std::array<std::array<unsigned char, 4>, 4>> pieces, float piece_scale);
+        void drawPieces(std::vector<std::array<std::array<int, 4>, 4>> pieces, float piece_scale);
 
         void drawHighlights(std::vector<std::array<std::array<bool, 4>, 4>> highlight);
 

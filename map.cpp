@@ -105,7 +105,7 @@ void Map::drawMap() {
         for(int i = 0; i < 4; i++) {
             for(int j = 0; j < 4; j++) {
                 int color_number = (i + j + k) % 2;
-                Color fill_color = {(unsigned char)(98 + 128 * color_number), (unsigned char)(52 + 135 * color_number), (unsigned char)(18 + 105 * color_number), (unsigned char)255};
+                Color fill_color = {(unsigned char)(98 + 128 * color_number), (unsigned char)(52 + 135 * color_number), (unsigned char)(18 + 105 * color_number), (int)255};
                 Vector2 drawn_points[4] = {Map::edge_positions[k][i][j], Map::edge_positions[k][i][j + 1], Map::edge_positions[k][i + 1][j], Map::edge_positions[k][i + 1][j + 1]};
                 DrawTriangleStrip(drawn_points, 4, fill_color);
             }
@@ -166,7 +166,7 @@ void Map::unloadTextures() {
  * @brief draws chess pieces
  * @param pieces matrix of pieces in the board
  */
-void Map::drawPieces(std::vector<std::array<std::array<unsigned char, 4>, 4>> pieces, float piece_scale) {
+void Map::drawPieces(std::vector<std::array<std::array<int, 4>, 4>> pieces, float piece_scale) {
     for(int i = 0; i < Map::fractions; i++) {
         for(int j = 0; j < 4; j++) {
             for(int k = 0; k < 4; k++) {

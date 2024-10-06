@@ -140,6 +140,21 @@ void Sockets::receiveMessage(int nsock) {
     }
 }
 
+std::string serialize(std::vector<std::array<std::array<int, 4>, 4>>* board) {
+    std::string output = "brd ";
+    int fractions = board->size();
+    output += std::to_string(fractions) + " ";
+    for(int i = 0; i < fractions; i++) {
+        for(int j = 0; j < 4; j++) {
+            for(int k = 0; k < 4; k++) {
+                output += std::to_string((*board)[i][j][k]) + " ";
+            }
+        }
+    }
+
+    return output;
+}
+
 void Sockets::acceptConnections() {
     printf("Started accept thread\n");
     int new_connection = accept(connection_socket, NULL, NULL);
@@ -161,9 +176,11 @@ void Sockets::acceptConnections() {
             sockets_list.emplace_back(new_connection);
         mutex_alter_socket_list.unlock();
 
-        // send message with player number
-        std::thread message_thread(&Sockets::sendMessage, this, new_connection, "num " + std::to_string(i + 1));
-        message_thread.detach();
+        // send messages to setup the game
+        std::thread message_thread1(&Sockets::sendMessage, this, new_connection, "num " + std::to_string(i + 1) + " " + std::to_string(control->player_turn));
+        std::thread message_thread2(&Sockets::sendMessage, this, new_connection, serialize(&(control->positions)));
+        message_thread1.detach();
+        message_thread2.detach();
         printf("Stored new connection\n");
     }
 }

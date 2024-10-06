@@ -26,7 +26,7 @@ class Sockets {
 
         const char *ip;
 
-        const int STD_SIZE = 128;
+        const int STD_SIZE = 8192;
 
         unsigned int connection_number;
 

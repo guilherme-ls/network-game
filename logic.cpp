@@ -3,7 +3,7 @@
 /**
  * @brief clear all controller variables
  */
-void Controller::clearController(unsigned char players) {
+void Controller::clearController(int players) {
     Controller::players = players;
     my_player = 0;
     player_turn = 0;
@@ -17,9 +17,9 @@ void Controller::clearController(unsigned char players) {
 
 void Controller::initialize_positions() {
     for(int i = 0; i < Controller::players * 2; i++) {
-        std::array<std::array<unsigned char, 4>, 4> temp;
+        std::array<std::array<int, 4>, 4> temp;
         if(i % 2 == 1) {
-            temp = {(std::array<unsigned char, 4>){0, 0, 6, 2}, (std::array<unsigned char, 4>){0, 0, 6, 4}, (std::array<unsigned char, 4>){0, 0, 6, 5}, (std::array<unsigned char, 4>){0, 0, 6, 3}};
+            temp = {(std::array<int, 4>){0, 0, 6, 2}, (std::array<int, 4>){0, 0, 6, 4}, (std::array<int, 4>){0, 0, 6, 5}, (std::array<int, 4>){0, 0, 6, 3}};
             for(int j = 0; j < 4; j++) {
                 for(int k = 2; k < 4; k++) {
                     temp[j][k] += 10 * (i - i % 2) / 2;
@@ -27,7 +27,7 @@ void Controller::initialize_positions() {
             }
         }
         else {
-            temp = {(std::array<unsigned char, 4>){0, 0, 0, 0}, (std::array<unsigned char, 4>){0, 0, 0, 0}, (std::array<unsigned char, 4>){6, 6, 6, 6}, (std::array<unsigned char, 4>){1, 4, 5, 3}};
+            temp = {(std::array<int, 4>){0, 0, 0, 0}, (std::array<int, 4>){0, 0, 0, 0}, (std::array<int, 4>){6, 6, 6, 6}, (std::array<int, 4>){1, 4, 5, 3}};
             for(int j = 2; j < 4; j++) {
                 for(int k = 0; k < 4; k++) {
                     temp[j][k] += 10 * (i - i % 2) / 2;
@@ -138,7 +138,7 @@ std::pair<int, int> calculateDirection(int i, int piece) {
 // j = x, k = y.
 
 bool Controller::checkBlock(int player, vector3 dest) {
-    unsigned char piece = positions[dest.i][dest.j][dest.k];
+    int piece = positions[dest.i][dest.j][dest.k];
     // checks if the way is blocked
     if(piece != 0) {
         // reaches piece of that can be eliminated
@@ -215,7 +215,7 @@ void Controller::moveDirection(bool recursive, int player, std::pair<int, int> d
 }
 
 void Controller::calculatePawn(vector3 src) {
-    unsigned char piece = positions[src.i][src.j][src.k];
+    int piece = positions[src.i][src.j][src.k];
     int player = (piece - piece % 10) / 10;
     std::pair<int, int> direction = calculateDirection(src.i, piece);
     std::pair<int, int> direction_double = direction;
@@ -249,7 +249,7 @@ void Controller::calculatePawn(vector3 src) {
 }
 
 void Controller::calculateRook(vector3 src) {
-    unsigned char piece = positions[src.i][src.j][src.k];
+    int piece = positions[src.i][src.j][src.k];
     int player = (piece - piece % 10) / 10;
     moveDirection(true, player, std::make_pair(1, 0), src);
     moveDirection(true, player, std::make_pair(-1, 0), src);
@@ -258,7 +258,7 @@ void Controller::calculateRook(vector3 src) {
 }
 
 void Controller::calculateHorse(vector3 src) {
-    unsigned char piece = positions[src.i][src.j][src.k];
+    int piece = positions[src.i][src.j][src.k];
     int player = (piece - piece % 10) / 10;
     moveDirection(false, player, std::make_pair(2, 1), src);
     moveDirection(false, player, std::make_pair(2, -1), src);
@@ -271,7 +271,7 @@ void Controller::calculateHorse(vector3 src) {
 }
 
 void Controller::calculateBishop(vector3 src) {
-    unsigned char piece = positions[src.i][src.j][src.k];
+    int piece = positions[src.i][src.j][src.k];
     int player = (piece - piece % 10) / 10;
     moveDirection(true, player, std::make_pair(1, 1), src);
     moveDirection(true, player, std::make_pair(-1, 1), src);
@@ -280,7 +280,7 @@ void Controller::calculateBishop(vector3 src) {
 }
 
 void Controller::calculateQueen(vector3 src) {    
-    unsigned char piece = positions[src.i][src.j][src.k];
+    int piece = positions[src.i][src.j][src.k];
     int player = (piece - piece % 10) / 10;
     moveDirection(true, player, std::make_pair(1, 0), src);
     moveDirection(true, player, std::make_pair(-1, 0), src);
@@ -293,7 +293,7 @@ void Controller::calculateQueen(vector3 src) {
 }
 
 void Controller::calculateKing(vector3 src) {
-    unsigned char piece = positions[src.i][src.j][src.k];
+    int piece = positions[src.i][src.j][src.k];
     int player = (piece - piece % 10) / 10;
     moveDirection(false, player, std::make_pair(1, 0), src);
     moveDirection(false, player, std::make_pair(-1, 0), src);
@@ -325,6 +325,23 @@ void Controller::receiveMessages() {
     }
 }
 
+std::vector<std::array<std::array<int, 4>, 4>> desserialize(std::stringstream* stream) {
+    std::vector<std::array<std::array<int, 4>, 4>> output;
+    int fractions;
+    (*stream) >> fractions;
+    for(int i = 0; i < fractions; i++) {
+        std::array<std::array<int, 4>, 4> temp;
+        for(int j = 0; j < 4; j++) {
+            for(int k = 0; k < 4; k++) {
+                (*stream) >> temp[j][k];
+            }
+        }
+        output.emplace_back(temp);
+    }
+
+    return output;
+}
+
 void Controller::executeMessage(std::string msg) {
     if(msg.substr(0,3) == "mov") {
         std::stringstream stream;
@@ -337,8 +354,15 @@ void Controller::executeMessage(std::string msg) {
     else if(msg.substr(0,3) == "num") {
         std::stringstream stream;
         stream << msg.substr(3, msg.size() - 3);
-        stream >> my_player;
-        printf("Player number is %d\n", my_player);
+        stream >> my_player >> player_turn;
+    }
+    else if(msg.substr(0, 3) == "brd") {
+        std::stringstream stream;
+        stream << msg.substr(3, msg.size() - 3);
+        positions = desserialize(&stream);
+        players = positions.size() / 2;
+        map->initializeMap(players * 2);
+        fillFalseMatrix();
     }
 }
 
