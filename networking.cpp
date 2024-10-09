@@ -1,5 +1,8 @@
 #include "networking.hpp"
 
+/**
+ * @brief Clears connection information
+ */
 void Sockets::clearSocket() {
     connection_socket = -1;
     inbound_messages.clear();
@@ -98,6 +101,10 @@ int Sockets::startClient() {
     return 0;
 }
 
+/**
+ * @brief Receives message from specified socket
+ * @param nsock socket to receive message from
+ */
 void Sockets::receiveMessage(int nsock) {
     printf("started receive message thread\n");
     char buffer[STD_SIZE]; // message buffer
@@ -135,12 +142,23 @@ void Sockets::receiveMessage(int nsock) {
     // stores received message
     else {
         std::string new_string(buffer, message_size);
-        mutex_alter_inbound_messages.lock();
-        inbound_messages.emplace_back(make_pair(new_string, nsock));
-        mutex_alter_inbound_messages.unlock();
+        std::stringstream stream;
+        stream << new_string;
+
+        // splits string if multple were received together
+        while (std::getline(stream, new_string, '\n')) {
+            mutex_alter_inbound_messages.lock();
+            inbound_messages.emplace_back(make_pair(new_string, nsock));
+            mutex_alter_inbound_messages.unlock();
+        }
     }
 }
 
+/**
+ * @brief Serializes data in a string
+ * @param board data to be serialized
+ * @return serialized data in a string
+ */
 std::string serialize(std::vector<std::array<std::array<int, 4>, 4>>* board) {
     std::string output = "brd ";
     int fractions = board->size();
@@ -152,10 +170,14 @@ std::string serialize(std::vector<std::array<std::array<int, 4>, 4>>* board) {
             }
         }
     }
+    output += "\n";
 
     return output;
 }
 
+/**
+ * @brief Function for accepting new socket connections
+ */
 void Sockets::acceptConnections() {
     printf("Started accept thread\n");
     int new_connection = accept(connection_socket, NULL, NULL);
@@ -178,18 +200,14 @@ void Sockets::acceptConnections() {
         mutex_alter_socket_list.unlock();
 
         // send messages to setup the game
-        std::thread message_thread1(&Sockets::sendMessage, this, new_connection, "num " + std::to_string(i + 1) + " " + std::to_string(control->player_turn));
-        std::thread message_thread2(&Sockets::sendMessage, this, new_connection, serialize(&(control->positions)));
-        message_thread1.detach();
-        message_thread2.detach();
+        sendMessage(new_connection, "num " + std::to_string(i + 1) + " " + std::to_string(control->player_turn) + "\n");
+        sendMessage(new_connection, serialize(&(control->positions)));
         printf("Stored new connection\n");
     }
 }
 
 /** Client main listening function
- * @param com Message pointer to receive the incoming message
- * @param dropout_time struct in {seconds, milisseconds} that defines time until dropping the listening function, when no messages are received
- * @return 1 on success, 0 if server is down, -1 on local failure 
+ * @return 1 on success, -1 on local failure 
  */
 int Sockets::receiveLoopClient() {
     fd_set fd_reads;
@@ -206,18 +224,13 @@ int Sockets::receiveLoopClient() {
     // gets message if fd is set
     if (FD_ISSET(connection_socket, &fd_reads)) {
         receiveMessage(connection_socket);
-        /*std::thread receive_thread(&Sockets::receiveMessage, this, connection_socket);
-        receive_thread.detach();*/
     }
 
     return 1;
 }
 
 /** Server listening function
- * @param connection_list string array with all socket names
- * @param size size of the given arrays
- * @param server_com message pointer to receive incoming messages
- * @return 1 on success, 0 on receiving server message, -1 on critical failure
+ * @return 1 on success, -1 on critical failure
  */
 int Sockets::receiveLoopServer() {
     // puts all sockets in a list and sets the maximum file descriptor
@@ -270,6 +283,9 @@ int Sockets::receiveLoopServer() {
     return 1;
 }
 
+/**
+ * @brief Client send message function
+ */
 void Sockets::sendLoopClient() {
     mutex_alter_outbound_messages.lock();
     int size = outbound_messages.size();
@@ -295,6 +311,9 @@ void Sockets::sendLoopClient() {
     }
 }
 
+/**
+ * @brief Server send message function
+ */
 void Sockets::sendLoopServer() {
     mutex_alter_outbound_messages.lock();
     int size = outbound_messages.size();
@@ -349,6 +368,9 @@ int Sockets::sendMessage(int fd, std::string msg) {
     return 0;
 }
 
+/**
+ * @brief Loop for the client communications with sockets
+ */
 void Sockets::realClientLoop() {
      while(1) {
         // receives messages
@@ -404,6 +426,9 @@ void Sockets::realClientLoop() {
     }
 }
 
+/**
+ * @brief Loop for the server communications with sockets
+ */
 void Sockets::realServerLoop() {
     while(1) {
         // receives messages
@@ -464,6 +489,7 @@ void Sockets::realServerLoop() {
 }
 
 /** Closes socket connection
+ * @param network_thread thread to be killed
  */
 void Sockets::endConnection(std::thread* network_thread) {
     mutex_halt_loop.lock();

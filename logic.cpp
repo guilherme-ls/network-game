@@ -101,7 +101,7 @@ void Controller::checkMapClicks(Vector2 mouse) {
                     if(highlights[i][j][k]) {
                         fillFalseMatrix();
                         move(Controller::previous_piece, (vector3){i, j, k});
-                        std::string msg = "mov " + std::to_string(previous_piece.i) + " " + std::to_string(previous_piece.j) + " " + std::to_string(previous_piece.k) + " " + std::to_string(i) + " " +std::to_string(j) + " " + std::to_string(k) + " ";
+                        std::string msg = "mov " + std::to_string(previous_piece.i) + " " + std::to_string(previous_piece.j) + " " + std::to_string(previous_piece.k) + " " + std::to_string(i) + " " +std::to_string(j) + " " + std::to_string(k) + "\n";
                         sendMessages(msg);
                     }
                     else if((Controller::positions[i][j][k] - Controller::positions[i][j][k] % 10) / 10 == player_turn) {
@@ -348,6 +348,7 @@ void Controller::receiveMessages() {
         
         // deal with msg
         executeMessage(msg);
+        std::cout << msg << std::endl;
     }
 }
 
